@@ -700,7 +700,6 @@ impl WorkerThread {
         // wait.
         self.registry.sleep.work_found(idle_state);
 
-        self.log(|| ThreadSawLatchSet { worker: self.index });
         mem::forget(abort_guard); // successful execution, do not abort
     }
 
