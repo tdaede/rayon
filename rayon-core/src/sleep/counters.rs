@@ -25,9 +25,6 @@ pub(super) struct SleepyCounter(u16);
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub(super) struct JobsCounter(u16);
 
-const ONE_SLEEPING: u64 = 0x0000_0000_0000_0001;
-const ONE_IDLE: u64 = 0x0000_0000_0001_0000;
-const ONE_SLEEPY: u64 = 0x0000_0001_0000_0000;
 const SLEEPY_ROLLVER_MASK: u64 = 0x0000_0000_FFFF_FFFF;
 const NO_JOBS_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
 const SLEEPING_SHIFT: u64 = 0;
@@ -60,7 +57,7 @@ impl AtomicCounters {
     /// Adds an idle thread. This cannot fail.
     #[inline]
     pub(super) fn add_idle_thread(&self) {
-        self.value.fetch_add(ONE_IDLE, Ordering::SeqCst);
+        self.value.fetch_add(1 << IDLE_SHIFT, Ordering::SeqCst);
     }
 
     #[inline]
@@ -70,7 +67,7 @@ impl AtomicCounters {
             "try_add_sleepy_thread: old_value {:?} has max sleepy threads",
             old_value,
         );
-        let new_value = Counters::new(old_value.word + ONE_SLEEPY);
+        let new_value = Counters::new(old_value.word + (1 << SLEEPY_SHIFT));
         self.try_exchange(old_value, new_value, Ordering::SeqCst)
     }
 
@@ -78,7 +75,7 @@ impl AtomicCounters {
     /// number of sleeping threads to wake up (if any).
     #[inline]
     pub(super) fn sub_idle_thread(&self) -> u16 {
-        let old_value = Counters::new(self.value.fetch_sub(ONE_IDLE, Ordering::SeqCst));
+        let old_value = Counters::new(self.value.fetch_sub(1 << IDLE_SHIFT, Ordering::SeqCst));
         debug_assert!(
             old_value.raw_idle_threads() > 0,
             "sub_idle_thread: old_value {:?} has no idle threads",
@@ -97,7 +94,7 @@ impl AtomicCounters {
     /// thread).
     #[inline]
     pub(super) fn sub_sleeping_thread(&self) {
-        let old_value = Counters::new(self.value.fetch_sub(ONE_SLEEPING, Ordering::SeqCst));
+        let old_value = Counters::new(self.value.fetch_sub(1 << SLEEPING_SHIFT, Ordering::SeqCst));
         debug_assert!(
             old_value.sleeping_threads() > 0,
             "sub_sleeping_thread: old_value {:?} had no sleeping threads",
@@ -119,7 +116,7 @@ impl AtomicCounters {
         );
 
         let mut new_value = old_value;
-        new_value.word += ONE_SLEEPING;
+        new_value.word += 1 << SLEEPING_SHIFT;
 
         self.try_exchange(old_value, new_value, Ordering::SeqCst)
     }
