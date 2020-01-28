@@ -25,8 +25,9 @@ pub(super) struct SleepyCounter(u16);
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub(super) struct JobsCounter(u16);
 
-const SLEEPY_ROLLVER_MASK: u64 = 0x0000_0000_FFFF_FFFF;
-const NO_JOBS_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
+const COUNTER_MASK: u64 = 0xFFFF;
+const SLEEPY_ROLLOVER_MASK: u64 = (COUNTER_MASK << SLEEPING_SHIFT) | (COUNTER_MASK << IDLE_SHIFT);
+const NO_JOBS_MASK: u64 = !(COUNTER_MASK << JOBS_SHIFT);
 const SLEEPING_SHIFT: u64 = 0;
 const IDLE_SHIFT: u64 = 1 * 16;
 const SLEEPY_SHIFT: u64 = 2 * 16;
@@ -140,7 +141,7 @@ impl AtomicCounters {
 
     #[inline]
     pub(super) fn try_rollover_jobs_and_sleepy_counters(&self, old_value: Counters) -> bool {
-        let new_value = Counters::new(old_value.word & SLEEPY_ROLLVER_MASK);
+        let new_value = Counters::new(old_value.word & SLEEPY_ROLLOVER_MASK);
         self.try_exchange(old_value, new_value, Ordering::SeqCst)
     }
 }
