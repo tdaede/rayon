@@ -26,7 +26,6 @@ pub(super) struct SleepyCounter(u16);
 pub(super) struct JobsCounter(u16);
 
 const COUNTER_MASK: u64 = 0xFFFF;
-const SLEEPY_ROLLOVER_MASK: u64 = (COUNTER_MASK << SLEEPING_SHIFT) | (COUNTER_MASK << IDLE_SHIFT);
 const NO_JOBS_MASK: u64 = !(COUNTER_MASK << JOBS_SHIFT);
 const SLEEPING_SHIFT: u64 = 0;
 const IDLE_SHIFT: u64 = 1 * 16;
@@ -68,7 +67,8 @@ impl AtomicCounters {
             "try_add_sleepy_thread: old_value {:?} has max sleepy threads",
             old_value,
         );
-        let new_value = Counters::new(old_value.word + (1 << SLEEPY_SHIFT));
+        let new_sleepy_counter = (old_value.sleepy_counter().as_u16() as u64 + 1) & COUNTER_MASK;
+        let new_value = Counters::new((old_value.word & !(COUNTER_MASK << SLEEPY_SHIFT)) | (new_sleepy_counter << SLEEPY_SHIFT));
         self.try_exchange(old_value, new_value, Ordering::SeqCst)
     }
 
@@ -136,12 +136,6 @@ impl AtomicCounters {
         debug_assert!(new_value.sleepy_counter() == old_value.sleepy_counter());
         debug_assert!(new_value.jobs_counter() == old_value.sleepy_counter());
 
-        self.try_exchange(old_value, new_value, Ordering::SeqCst)
-    }
-
-    #[inline]
-    pub(super) fn try_rollover_jobs_and_sleepy_counters(&self, old_value: Counters) -> bool {
-        let new_value = Counters::new(old_value.word & SLEEPY_ROLLOVER_MASK);
         self.try_exchange(old_value, new_value, Ordering::SeqCst)
     }
 }

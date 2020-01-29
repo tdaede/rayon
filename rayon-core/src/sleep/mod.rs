@@ -118,16 +118,9 @@ impl Sleep {
         loop {
             let counters = self.counters.load(Ordering::Relaxed);
             let sleepy_counter = counters.sleepy_counter();
-            if sleepy_counter.is_max() {
-                if self.counters.try_rollover_jobs_and_sleepy_counters(counters) {
-                    self.logger.log(|| ThreadSleepy { worker: worker_index, sleepy_counter: 0 });
-                    return ZERO_SLEEPY_COUNTER;
-                }
-            } else {
-                if self.counters.try_add_sleepy_thread(counters) {
-                    self.logger.log(|| ThreadSleepy { worker: worker_index, sleepy_counter: sleepy_counter.as_u16() });
-                    return sleepy_counter;
-                }
+            if self.counters.try_add_sleepy_thread(counters) {
+                self.logger.log(|| ThreadSleepy { worker: worker_index, sleepy_counter: sleepy_counter.as_u16() });
+                return sleepy_counter;
             }
         }
     }
